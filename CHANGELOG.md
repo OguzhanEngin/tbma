@@ -18,6 +18,7 @@
 - Added deterministic repeated fitting, feature-schema validation, and duplicate-index-safe bootstrap mapping.
 - Added a 100% statement-and-branch coverage gate to tests and CI.
 - Added CI, distribution validation, and PyPI Trusted Publishing workflows.
+- Fixed the first GitHub CI lint audit and separated Ruff 0.16.4 into a dedicated lint job so lint failures no longer appear as failures for every OS/Python matrix entry.
 - Added cross-platform release gating: the built wheel is tested on Linux, Windows, and macOS for Python 3.10–3.14, and the repository-only paper workflow is tested on all three operating systems with Python 3.13.
 - Added platform-focused regression tests for nested Unicode/space paths, CRLF TSF input, portable persistence paths, and result directories, plus repository line-ending normalization through `.gitattributes`.
 - Added a GitHub-only paper reproduction workflow using `RandomForestRegressor`, `MultiTaskElasticNetCV`, and `CatBoostRegressor`. It is driven by repository-root `dataset_info.xlsx`, honors `run`, `horizon`, `predetermined_lag`, `integer_conversion`, and `evaluate`, and is explicitly excluded from PyPI artifacts and dependencies.

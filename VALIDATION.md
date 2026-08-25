@@ -84,9 +84,12 @@ editable source checkout, on 15 core combinations:
 - `macos-latest` with Python 3.10, 3.11, 3.12, 3.13, and 3.14.
 
 Each core job builds a wheel, installs that wheel with the active interpreter,
-runs Ruff, executes the complete package suite with the 100% statement/branch
-coverage gate, and executes `examples/basic_forecasting.py` from the installed
-artifact. The release build cannot proceed unless all matrix jobs succeed.
+executes the complete package suite with the 100% statement/branch coverage
+gate, and executes `examples/basic_forecasting.py` from the installed artifact.
+Ruff 0.16.4 runs once in a separate Ubuntu lint job, so a lint failure is
+distinguished from operating-system or Python-version test failures. The release
+build cannot proceed unless lint, all core matrix jobs, and all paper-workflow
+jobs succeed.
 
 The repository-only paper reproduction workflow is independently tested on
 `ubuntu-latest`, `windows-latest`, and `macos-latest` with Python 3.13 after
@@ -112,6 +115,8 @@ release must therefore not be described as *actually executed on all three
 operating systems* until the repository's GitHub Actions matrix has completed
 green on the corresponding hosted runners. Both `ci.yml` and `publish.yml`
 enforce those real-runner checks before release artifacts can be published.
+The previous GitHub run stopped at Ruff before pytest; the reported 24 lint
+findings were corrected in this revision, and lint is now a dedicated job.
 ## Release metadata validation
 
 The release metadata declares the MIT license and the confirmed authors Mustafa Baydoğan, Berk Görgülü, and Oğuzhan Engin. The source distribution includes `LICENSE` and `CITATION.cff`; the wheel includes the MIT license file under its distribution metadata. The canonical repository metadata points to `https://github.com/OguzhanEngin/tbma`, with issues at `https://github.com/OguzhanEngin/tbma/issues`.

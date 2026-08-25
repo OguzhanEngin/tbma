@@ -9,10 +9,8 @@ import pytest
 
 pytest.importorskip("catboost")
 pytest.importorskip("openpyxl")
+paper = pytest.importorskip("paper_reproduction.paper_tsf_workflow")
 pytestmark = pytest.mark.filterwarnings("ignore::sklearn.exceptions.ConvergenceWarning")
-
-from paper_reproduction import paper_tsf_workflow as paper
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

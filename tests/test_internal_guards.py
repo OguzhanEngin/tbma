@@ -89,8 +89,9 @@ def test_empty_inbag_rows_raise_internal_error():
     core._train_dates = pd.DatetimeIndex(["2020-01-01"])
 
     class EmptyInBagForest:
-        estimators_ = [object()]
-        estimators_samples_ = [np.array([], dtype=int)]
+        def __init__(self) -> None:
+            self.estimators_ = [object()]
+            self.estimators_samples_ = [np.array([], dtype=int)]
 
     core.tree_ensemble = EmptyInBagForest()
 

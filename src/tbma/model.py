@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import pickle
+import warnings
 from collections.abc import Iterable, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-import pickle
-import warnings
 from typing import Any
 
 import numpy as np
@@ -107,7 +107,7 @@ class TBMA(RegressorMixin, BaseEstimator):
         dates: Iterable[Any] | None = None,
         frequency: str | None = None,
         seasonal_period: int | None = None,
-    ) -> "TBMA":
+    ) -> TBMA:
         """Fit TBMA's supervised forest and node-specific PMA curves.
 
         Parameters
@@ -191,7 +191,7 @@ class TBMA(RegressorMixin, BaseEstimator):
         dates: Iterable[Any] | None = None,
         feature_window: int = 1,
         summary_method: str | None = None,
-        pca_components: int | float = 2,
+        pca_components: float = 2,
         pca_include_mean: bool = True,
     ) -> pd.DataFrame:
         """Generate the TBMA temporal feature representation.
@@ -279,7 +279,7 @@ class TBMA(RegressorMixin, BaseEstimator):
         return path
 
     @classmethod
-    def load(cls, filename: str | Path) -> "TBMA":
+    def load(cls, filename: str | Path) -> TBMA:
         """Load an estimator previously written by :meth:`save`."""
         path = Path(filename)
         with path.open("rb") as handle:
@@ -489,7 +489,7 @@ class TBMA(RegressorMixin, BaseEstimator):
         return summary_method
 
     @staticmethod
-    def _validate_pca_components(value: int | float) -> int | float:
+    def _validate_pca_components(value: float) -> int | float:
         if isinstance(value, (int, np.integer)) and not isinstance(
             value, (bool, np.bool_)
         ):
@@ -505,7 +505,7 @@ class TBMA(RegressorMixin, BaseEstimator):
 
     @staticmethod
     def _validate_unused_pca_options(
-        pca_components: int | float,
+        pca_components: float,
         pca_include_mean: bool,
     ) -> None:
         valid_include_mean = isinstance(pca_include_mean, (bool, np.bool_)) and bool(
@@ -558,7 +558,8 @@ class TBMA(RegressorMixin, BaseEstimator):
         if offset.n < 1:
             raise ValueError("frequency multiplier must be positive")
         if not isinstance(offset, _SUPPORTED_OFFSET_TYPES):
-            raise ValueError(
+            # The caller supplied a string; this is a value-domain error.
+            raise ValueError(  # noqa: TRY004
                 f"Unsupported frequency '{frequency}'. TBMA supports regular "
                 "second/minute/hour/day/business-day/week/month/quarter/year "
                 "start or end frequencies."

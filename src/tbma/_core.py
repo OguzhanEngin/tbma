@@ -7,9 +7,9 @@ prediction, and feature calculations.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from math import ceil
-from typing import Sequence
 
 import numpy as np
 import pandas as pd
@@ -146,7 +146,7 @@ class TBMACore:
         dates: pd.DatetimeIndex,
         *,
         feature_window: int,
-        pca_components: int | float,
+        pca_components: float,
         include_mean: bool,
     ) -> pd.DataFrame:
         """Summarize tree-level features using training-fitted PCA components."""
@@ -215,7 +215,7 @@ class TBMACore:
         self,
         *,
         feature_window: int,
-        pca_components: int | float,
+        pca_components: float,
     ) -> tuple[list[PCA], list[int], np.ndarray, list[np.ndarray]]:
         """Fit and cache one PCA basis per feature position using training rows."""
         cache_key = (feature_window, float(pca_components))

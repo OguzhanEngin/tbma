@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime
 from math import ceil
 from pathlib import Path
 from typing import Any
@@ -62,7 +61,7 @@ TSF_SEASONAL_PERIOD_MAP = {
     "half_hourly": 48,
     "hourly": 24,
     "daily": 7,
-    "weekly": int(round(365.25 / 7)),
+    "weekly": round(365.25 / 7),
     "monthly": 12,
     "quarterly": 4,
     "yearly": 1,
@@ -169,7 +168,7 @@ def _parse_attribute(value: str, kind: str) -> Any:
         return value
     if kind == "date":
         try:
-            return datetime.strptime(value, "%Y-%m-%d %H-%M-%S")
+            return pd.to_datetime(value, format="%Y-%m-%d %H-%M-%S").to_pydatetime()
         except ValueError:
             return pd.Timestamp(value).to_pydatetime()
     raise ValueError(f"Unsupported TSF attribute type: {kind!r}")
@@ -483,8 +482,12 @@ def prepare_dataset(
         )
 
     surviving_series = set(processed["series"])
-    series_means = series_means.loc[list(series for series in series_means.index if series in surviving_series)]
-    mase_scales = mase_scales.loc[list(series for series in mase_scales.index if series in surviving_series)]
+    series_means = series_means.loc[
+        [series for series in series_means.index if series in surviving_series]
+    ]
+    mase_scales = mase_scales.loc[
+        [series for series in mase_scales.index if series in surviving_series]
+    ]
 
     return PreparedDataset(
         name=name or path.stem,
@@ -552,7 +555,7 @@ def _result_row(data: PreparedDataset, seed: int, model: str, prediction: np.nda
         "model": model,
         "mean_MASE": float(np.mean(mase)),
         "median_MASE": float(np.median(mase)),
-        "n_series": int(len(mase)),
+        "n_series": len(mase),
         "horizon": data.horizon,
         "lookback": data.lookback,
         "seasonal_period": data.seasonal_period,
@@ -857,12 +860,14 @@ def _flag(value: Any, *, default: bool, column: str, row_number: int) -> bool:
         return default
     if isinstance(value, (bool, np.bool_)):
         return bool(value)
-    if isinstance(value, (int, np.integer)):
-        if int(value) in {0, 1}:
-            return bool(value)
-    if isinstance(value, (float, np.floating)) and float(value).is_integer():
-        if int(value) in {0, 1}:
-            return bool(int(value))
+    if isinstance(value, (int, np.integer)) and int(value) in {0, 1}:
+        return bool(value)
+    if (
+        isinstance(value, (float, np.floating))
+        and float(value).is_integer()
+        and int(value) in {0, 1}
+    ):
+        return bool(int(value))
     if isinstance(value, str):
         normalized = value.strip().lower()
         if normalized in {"1", "true", "yes", "y"}:

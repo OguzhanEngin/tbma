@@ -61,7 +61,7 @@ The workflow uses OIDC and therefore does not require a long-lived PyPI token in
 
 ## 4. Verify CI on every supported Python version
 
-Before tagging a production release, require a successful CI run across Python 3.10, 3.11, 3.12, 3.13, and 3.14. CI enforces Ruff plus 100% statement and branch coverage. A dedicated Python 3.13 job separately installs the repository-only `paper_reproduction/requirements.txt` dependencies and runs the complete synthetic `.tsf` workflow test, including the workbook-driven configuration path, CatBoost, Multi-task Elastic Net, Random Forest, TBMA feature augmentation, and standalone TBMA.
+Before tagging a production release, require a successful CI run across Python 3.10, 3.11, 3.12, 3.13, and 3.14 on Linux, Windows, and macOS. Ruff 0.16.4 runs once in a dedicated Ubuntu lint job, while the OS/Python matrix independently enforces 100% statement and branch coverage against the installed wheel. Dedicated Python 3.13 jobs separately install the repository-only `paper_reproduction/requirements.txt` dependencies and run the complete synthetic `.tsf` workflow test on Linux, Windows, and macOS, including the workbook-driven configuration path, CatBoost, Multi-task Elastic Net, Random Forest, TBMA feature augmentation, and standalone TBMA.
 
 The publishing workflow repeats both the core release tests and the repository-only paper-reproduction test before it builds distributions. The reproduction directory and `dataset_info.xlsx` are deliberately excluded from both PyPI artifacts.
 
