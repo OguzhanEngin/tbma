@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments
+.venv/
+venv/
+env/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Local model artifacts
+*.pkl
+*.pickle
+*.joblib
+
+# Paper example outputs
+paper_results/
+
+# Datasets are supplied locally for paper reproduction
+Datasets/

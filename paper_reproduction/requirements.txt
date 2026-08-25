@@ -1,0 +1,4 @@
+# Repository-only dependencies for reproducing the paper experiments.
+# Install the TBMA package itself from the repository root first: pip install -e .
+catboost>=1.2
+openpyxl>=3.1

@@ -1,0 +1,29 @@
+TBMA 0.1.0 GitHub-ready release-candidate checksums
+Canonical repository: https://github.com/OguzhanEngin/tbma
+
+wheel  dist/tbma-0.1.0-py3-none-any.whl
+13ea4b5bdfdf5b2374552e7c6fcd26cecfa0cfed66e579d0fd10b6cedc8aef5a
+
+sdist  dist/tbma-0.1.0.tar.gz
+ff6e9832ea6b54c42c520b6c1fe8442cf12f28b146079ad299251ae100431260
+
+LICENSE
+e9aa03ff3a00542f01eb3065bb2bdbd0d3905f8bde378d09d9651a51ee39b880
+
+CITATION.cff
+d4226c50d7f38edbb183adbde043aa2fc46a4fb3a1921d5abc0e2d4c8a435536
+
+pyproject.toml
+ec5dc104dea6017aadafdce61a13f655bce51505e9d88ff04ea601e2ec6d5285
+
+repository-only dataset configuration  dataset_info.xlsx
+784362d8fba30c2c24fe0cd675b37fc57609e504a65f86184feacd861b588967
+
+src/tbma/__init__.py
+1ca96ef183fd30d249f3053e4146f950249ac9c67c3dcd40603939fd3777e89c
+
+src/tbma/model.py
+ee6183c4c85c16bda82f3c8bb7df12ead0e1d950668b0a6e6b233a62fecbe674
+
+src/tbma/_core.py
+a91cd01438f9a2ff365d3a23251c5ec79670a0beff5ce7688415fdd54866b700
