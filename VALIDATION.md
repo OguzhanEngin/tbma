@@ -52,7 +52,7 @@ The release suite covers, among other cases:
 - save/load round trips;
 - scikit-learn cloning and fitted-state checks.
 
-The reusable-library suite passes **139 tests** with **100% statement coverage and 100% branch coverage** across package source. The separate repository-only paper workflow adds **9 tests**, for **148 passing tests** across the full GitHub checkout. No package lines or branches are excluded from coverage.
+The reusable-library suite passes **141 tests** with **100% statement coverage and 100% branch coverage** across package source. The separate repository-only paper workflow adds **9 tests**, for **150 passing tests** across the full GitHub checkout. No package lines or branches are excluded from coverage.
 
 ## Repository-only paper-workflow validation
 
@@ -66,7 +66,7 @@ The paper reproduction code is intentionally excluded from both the wheel and sd
 
 ## Distribution checks
 
-The wheel and source distribution are built with the configured setuptools PEP 517 backend. A repository check asserts that neither artifact contains `paper_reproduction/`, `dataset_info.xlsx`, `Datasets/`, or `paper_results/`, and that CatBoost/OpenPyXL do not appear as package requirements. The built wheel is installed separately and exercised for import, fitting, prediction, and default feature generation; the extracted sdist reruns the 139-test package suite at 100% statement and branch coverage. CI additionally runs `twine check` on both artifacts before publishing.
+The wheel and source distribution are built with the configured setuptools PEP 517 backend. A repository check asserts that neither artifact contains `paper_reproduction/`, `dataset_info.xlsx`, `Datasets/`, or `paper_results/`, and that CatBoost/OpenPyXL do not appear as package requirements. The built wheel is installed separately and exercised for import, fitting, prediction, and default feature generation; the extracted sdist reruns the 141-test package suite at 100% statement and branch coverage. CI additionally runs `twine check` on both artifacts before publishing.
 
 ## Cross-platform release audit
 
@@ -106,9 +106,9 @@ checkout line-ending behavior does not change source/configuration content.
 ### Validation that can be performed in this build environment
 
 This artifact was assembled in a Linux container with Python 3.13.5. In that
-environment, the reusable-library suite passes **139 tests** with **100% statement
+environment, the reusable-library suite passes **141 tests** with **100% statement
 coverage and 100% branch coverage** over `src/tbma`, and the separate paper
-workflow passes **9 tests**, for **148 passing tests** in the checkout.
+workflow passes **9 tests**, for **150 passing tests** in the checkout.
 
 A Linux container cannot itself execute Windows or macOS binaries/runners. A
 release must therefore not be described as *actually executed on all three
@@ -121,3 +121,11 @@ findings were corrected in this revision, and lint is now a dedicated job.
 
 The release metadata declares the MIT license and the confirmed authors Mustafa Baydoğan, Berk Görgülü, and Oğuzhan Engin. The source distribution includes `LICENSE` and `CITATION.cff`; the wheel includes the MIT license file under its distribution metadata. The canonical repository metadata points to `https://github.com/OguzhanEngin/tbma`, with issues at `https://github.com/OguzhanEngin/tbma/issues`.
 
+
+
+## pandas 3 compatibility
+
+The CI matrix intentionally installs current dependency versions. TBMA copies the
+forward-filled node-PMA table into a writable NumPy buffer before parent-node
+fallback assignment, and normalizes the legacy pandas aliases `T`, `H`, `M`, `Q`,
+and `Y` to their current equivalents before frequency parsing.

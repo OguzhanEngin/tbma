@@ -7,7 +7,6 @@ import zipfile
 from email.parser import Parser
 from pathlib import Path
 
-
 FORBIDDEN_PARTS = {
     "paper_reproduction",
     "dataset_info.xlsx",

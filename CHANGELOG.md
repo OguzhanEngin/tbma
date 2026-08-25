@@ -2,6 +2,7 @@
 
 ## 0.1.0
 
+- Fixed pandas 3 compatibility for writable PMA buffers and legacy frequency aliases.
 - Added final project URLs for `https://github.com/OguzhanEngin/tbma` and its issue tracker to package and citation metadata.
 - Initial Python package release of Tree-Based Moving Average (TBMA).
 - Added the MIT license, confirmed author metadata (Mustafa Baydoğan, Berk Görgülü, and Oğuzhan Engin), and `CITATION.cff`.

@@ -42,7 +42,6 @@ from sklearn.linear_model import MultiTaskElasticNetCV
 
 from tbma import TBMA
 
-
 TSF_FREQUENCY_MAP = {
     "minutely": "min",
     "10_minutes": "10min",

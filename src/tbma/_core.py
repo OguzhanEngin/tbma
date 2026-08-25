@@ -347,7 +347,7 @@ class TBMACore:
         """Return a tree's as-of node-PMA matrix and its observation dates."""
         tree_col = f"tree_{tree_idx}"
         ma_df = self.tree_ma_dict[tree_col]
-        ma_arr = ma_df.ffill().to_numpy(dtype=np.float64)
+        ma_arr = ma_df.ffill().to_numpy(dtype=np.float64, copy=True)
         ma_date_arr = ma_df.index.to_numpy()
 
         valid_row_arr = np.flatnonzero(~np.isnan(ma_arr).all(axis=1))

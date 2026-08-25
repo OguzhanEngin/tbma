@@ -148,3 +148,34 @@ def test_reference_lag_rounds_up_to_complete_season(sample_data):
     assert model.core_._reference_lag(1) == 7
     assert model.core_._reference_lag(7) == 7
     assert model.core_._reference_lag(8) == 14
+
+
+def test_node_ma_lookup_returns_writable_buffer(sample_data):
+    X, y, _ = sample_data
+    model = TBMA(ma_order=2, n_estimators=5, random_state=3).fit(
+        X, y, seasonal_period=7
+    )
+
+    ma_arr, _ = model.core_._node_ma_lookup(0)
+
+    assert ma_arr.flags.writeable
+
+
+def test_node_ma_lookup_requests_a_copy_from_pandas(monkeypatch, sample_data):
+    X, y, _ = sample_data
+    model = TBMA(ma_order=2, n_estimators=5, random_state=3).fit(
+        X, y, seasonal_period=7
+    )
+    original_to_numpy = pd.DataFrame.to_numpy
+
+    def pandas3_like_to_numpy(frame, *args, **kwargs):
+        result = original_to_numpy(frame, *args, **kwargs)
+        if not kwargs.get("copy", False):
+            result.setflags(write=False)
+        return result
+
+    monkeypatch.setattr(pd.DataFrame, "to_numpy", pandas3_like_to_numpy)
+
+    ma_arr, _ = model.core_._node_ma_lookup(0)
+
+    assert ma_arr.flags.writeable

@@ -48,6 +48,13 @@ _SUPPORTED_OFFSET_TYPES = (
     YearBegin,
     YearEnd,
 )
+_LEGACY_FREQUENCY_ALIASES = {
+    "T": "min",
+    "H": "h",
+    "M": "ME",
+    "Q": "QE-DEC",
+    "Y": "YE-DEC",
+}
 
 
 @dataclass(frozen=True)
@@ -544,10 +551,15 @@ class TBMA(RegressorMixin, BaseEstimator):
         if not isinstance(frequency, str) or not frequency.strip():
             raise TypeError("frequency must be a non-empty string")
 
+        frequency_text = frequency.strip()
+        normalized_frequency = _LEGACY_FREQUENCY_ALIASES.get(
+            frequency_text, frequency_text
+        )
+
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", FutureWarning)
-                offset = to_offset(frequency.strip())
+                offset = to_offset(normalized_frequency)
         except ValueError as exc:
             raise ValueError(
                 "Unsupported frequency. Use a regular pandas frequency such as "
