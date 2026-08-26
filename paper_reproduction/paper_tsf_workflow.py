@@ -27,6 +27,7 @@ alternative :class:`PaperModelSettings` instance.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from dataclasses import dataclass
 from math import ceil
 from pathlib import Path
@@ -68,6 +69,30 @@ TSF_SEASONAL_PERIOD_MAP = {
 
 MODEL_ORDER = ["CB", "CB_TBMA", "MEN", "MEN_TBMA", "RF", "RF_TBMA", "TBMA"]
 FEATURE_PAIRS = [("CB", "CB_TBMA"), ("MEN", "MEN_TBMA"), ("RF", "RF_TBMA")]
+RESULT_COLUMNS = [
+    "dataset",
+    "file_name",
+    "evaluate",
+    "seed",
+    "model",
+    "mean_MASE",
+    "median_MASE",
+    "n_series",
+    "horizon",
+    "lookback",
+    "seasonal_period",
+    "seasonal_differencing",
+    "seasonal_dominance_ratio",
+]
+SUMMARY_NAMES = [
+    "dataset_mean_mase",
+    "table2_mean_mase",
+    "feature_spd",
+    "standalone_spd",
+    "win_counts",
+    "wilcoxon_feature",
+    "wilcoxon_standalone",
+]
 
 
 @dataclass(frozen=True)
@@ -388,23 +413,24 @@ def prepare_dataset(
             f"{path.name} has no positive @horizon; provide a horizon override"
         )
 
+    tsf_frequency = metadata.frequency if metadata.frequency is not None else "yearly"
     if frequency is None:
-        if metadata.frequency not in TSF_FREQUENCY_MAP:
+        if tsf_frequency not in TSF_FREQUENCY_MAP:
             raise ValueError(
-                f"Unsupported or missing TSF frequency {metadata.frequency!r} for "
-                f"{path.name}; provide a pandas frequency override"
+                f"Unsupported TSF frequency {metadata.frequency!r} for {path.name}; "
+                "provide a pandas frequency override"
             )
-        resolved_frequency = TSF_FREQUENCY_MAP[metadata.frequency]
+        resolved_frequency = TSF_FREQUENCY_MAP[tsf_frequency]
     else:
         resolved_frequency = frequency
 
     if seasonal_period is None:
-        if metadata.frequency not in TSF_SEASONAL_PERIOD_MAP:
+        if tsf_frequency not in TSF_SEASONAL_PERIOD_MAP:
             raise ValueError(
                 f"No default seasonal period for TSF frequency {metadata.frequency!r}; "
                 "provide seasonal_period"
             )
-        resolved_seasonal_period = TSF_SEASONAL_PERIOD_MAP[metadata.frequency]
+        resolved_seasonal_period = TSF_SEASONAL_PERIOD_MAP[tsf_frequency]
     else:
         resolved_seasonal_period = int(seasonal_period)
     if resolved_seasonal_period < 1:
@@ -631,15 +657,28 @@ def _fit_predict(
     return _as_2d(model.predict(X_test.to_numpy(dtype=float)), horizon)
 
 
+def _emit_result(
+    results: list[dict[str, Any]],
+    row: dict[str, Any],
+    on_result: Callable[[dict[str, Any]], None] | None,
+) -> None:
+    """Record a completed model result and immediately notify the checkpoint sink."""
+    results.append(row)
+    if on_result is not None:
+        on_result(row)
+
+
 def run_seed(
     data: PreparedDataset,
     seed: int,
     *,
     settings: PaperModelSettings | None = None,
     n_jobs: int = -1,
+    on_result: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
-    """Run TBMA, base models, and TBMA-augmented models for one seed."""
+    """Run one seed, emitting each model result as soon as it completes."""
     settings = settings or PaperModelSettings()
+    results: list[dict[str, Any]] = []
 
     tbma = TBMA(
         ma_order=settings.tbma_ma_order,
@@ -660,31 +699,26 @@ def run_seed(
         seasonal_period=data.seasonal_period,
     )
 
-    full_tbma_features = tbma.generate_features(
-        data.full[data.feature_columns],
-        dates=data.full["date"],
-        feature_window=settings.feature_window,
-        summary_method=None,
-    )
+    # Persist standalone TBMA before doing any downstream feature/model work.
     test_tbma_prediction = tbma.predict(
         data.test[data.feature_columns],
         dates=data.test["date"],
         horizon=data.horizon,
     ).to_numpy(dtype=float)
     test_tbma_prediction = _reconstruct_predictions(test_tbma_prediction, data.test, data)
-    results = [_result_row(data, seed, "TBMA", test_tbma_prediction)]
+    _emit_result(
+        results,
+        _result_row(data, seed, "TBMA", test_tbma_prediction),
+        on_result,
+    )
 
     base_train = data.downstream_train[data.feature_columns]
     base_test = data.test[data.feature_columns]
-    augmented = pd.concat(
-        [data.full[data.feature_columns], full_tbma_features], axis=1
-    )
-    augmented_train = augmented.loc[data.downstream_train.index]
-    augmented_test = augmented.loc[data.test.index]
     y_train = data.downstream_train[data.target_columns].to_numpy(dtype=float)
 
+    # Base models do not depend on generated TBMA features, so checkpoint them
+    # before the augmented-model stage.
     base_models = _paper_models(seed, settings, n_jobs=n_jobs)
-    augmented_models = _paper_models(seed, settings, n_jobs=n_jobs)
     for model_name, base_model in base_models.items():
         base_prediction = _fit_predict(
             base_model,
@@ -694,10 +728,28 @@ def run_seed(
             data.horizon,
         )
         base_prediction = _reconstruct_predictions(base_prediction, data.test, data)
-        results.append(_result_row(data, seed, model_name, base_prediction))
+        _emit_result(
+            results,
+            _result_row(data, seed, model_name, base_prediction),
+            on_result,
+        )
 
+    full_tbma_features = tbma.generate_features(
+        data.full[data.feature_columns],
+        dates=data.full["date"],
+        feature_window=settings.feature_window,
+        summary_method=None,
+    )
+    augmented = pd.concat(
+        [data.full[data.feature_columns], full_tbma_features], axis=1
+    )
+    augmented_train = augmented.loc[data.downstream_train.index]
+    augmented_test = augmented.loc[data.test.index]
+
+    augmented_models = _paper_models(seed, settings, n_jobs=n_jobs)
+    for model_name, augmented_model in augmented_models.items():
         augmented_prediction = _fit_predict(
-            augmented_models[model_name],
+            augmented_model,
             augmented_train,
             y_train,
             augmented_test,
@@ -707,8 +759,10 @@ def run_seed(
         augmented_prediction = _reconstruct_predictions(
             augmented_prediction, data.test, data
         )
-        results.append(
-            _result_row(data, seed, f"{model_name}_TBMA", augmented_prediction)
+        _emit_result(
+            results,
+            _result_row(data, seed, f"{model_name}_TBMA", augmented_prediction),
+            on_result,
         )
 
     return results
@@ -736,6 +790,8 @@ def _holm_adjust(p_values: list[float]) -> list[float]:
 
 def _wilcoxon_table(dataset_means: pd.DataFrame, pairs: list[tuple[str, str]]) -> pd.DataFrame:
     pivot = dataset_means.pivot(index="dataset", columns="model", values="mean_MASE")
+    required_models = sorted({model for pair in pairs for model in pair})
+    pivot = pivot.reindex(columns=required_models)
     rows: list[dict[str, Any]] = []
     raw_p: list[float] = []
     for baseline, candidate in pairs:
@@ -842,15 +898,72 @@ def summarize_results(per_seed: pd.DataFrame) -> dict[str, pd.DataFrame]:
     }
 
 
+def _atomic_csv_write(frame: pd.DataFrame, path: Path) -> None:
+    """Atomically replace a CSV so an interrupted write cannot corrupt it."""
+    temporary = path.with_name(f".{path.name}.tmp")
+    frame.to_csv(temporary, index=False)
+    temporary.replace(path)
+
+
+def _write_summary_tables(
+    per_seed: pd.DataFrame, output: Path
+) -> dict[str, pd.DataFrame]:
+    """Write aggregate tables for the currently completed result rows."""
+    if per_seed.empty:
+        return {}
+    if "evaluate" in per_seed and not per_seed["evaluate"].astype(bool).any():
+        return {}
+    summaries = summarize_results(per_seed)
+    for name, table in summaries.items():
+        _atomic_csv_write(table, output / f"{name}.csv")
+    return summaries
+
+
+class _IncrementalResultWriter:
+    """Durable CSV checkpoint updated after every completed model."""
+
+    def __init__(self, output_dir: str | Path) -> None:
+        self.output = Path(output_dir)
+        self.output.mkdir(parents=True, exist_ok=True)
+        self.rows: list[dict[str, Any]] = []
+        self.started = False
+
+    @property
+    def frame(self) -> pd.DataFrame:
+        return pd.DataFrame(self.rows, columns=RESULT_COLUMNS)
+
+    def record(self, row: dict[str, Any]) -> None:
+        """Persist one completed TBMA/base/augmented model result immediately."""
+        if not self.started:
+            for name in SUMMARY_NAMES:
+                (self.output / f"{name}.csv").unlink(missing_ok=True)
+            self.started = True
+        self.rows.append(dict(row))
+        per_seed = self.frame
+        _atomic_csv_write(per_seed, self.output / "per_seed_mase.csv")
+        _write_summary_tables(per_seed, self.output)
+        print(
+            f"    saved {row['model']}: mean MASE={row['mean_MASE']:.6g} "
+            f"-> {self.output / 'per_seed_mase.csv'}"
+        )
+
+    def finalize(self) -> dict[str, pd.DataFrame]:
+        """Refresh all aggregate outputs after the final completed result."""
+        per_seed = self.frame
+        if per_seed.empty:
+            return {}
+        summaries = summarize_results(per_seed)
+        for name, table in summaries.items():
+            _atomic_csv_write(table, self.output / f"{name}.csv")
+        return summaries
+
+
 def write_results(per_seed: pd.DataFrame, output_dir: str | Path) -> dict[str, pd.DataFrame]:
     """Write per-seed and paper-style aggregate tables to CSV files."""
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
-    per_seed.to_csv(output / "per_seed_mase.csv", index=False)
-    summaries = summarize_results(per_seed)
-    for name, table in summaries.items():
-        table.to_csv(output / f"{name}.csv", index=False)
-    return summaries
+    _atomic_csv_write(per_seed, output / "per_seed_mase.csv")
+    return _write_summary_tables(per_seed, output)
 
 
 def _flag(value: Any, *, default: bool, column: str, row_number: int) -> bool:
@@ -1041,7 +1154,7 @@ def run_dataset_configs(
     """Run the paper workflow for workbook-selected datasets."""
     settings = settings or PaperModelSettings()
     dataset_root = Path(datasets_dir)
-    all_results: list[dict[str, Any]] = []
+    checkpoint = _IncrementalResultWriter(output_dir)
 
     for config in configs:
         path = dataset_root / config.file_name
@@ -1069,14 +1182,18 @@ def run_dataset_configs(
         )
         for seed in seeds:
             print(f"  seed {seed}")
-            all_results.extend(
-                run_seed(data, int(seed), settings=settings, n_jobs=n_jobs)
+            run_seed(
+                data,
+                int(seed),
+                settings=settings,
+                n_jobs=n_jobs,
+                on_result=checkpoint.record,
             )
 
-    if not all_results:
+    per_seed = checkpoint.frame
+    if per_seed.empty:
         raise ValueError("No configured datasets were evaluated")
-    per_seed = pd.DataFrame(all_results)
-    summaries = write_results(per_seed, output_dir)
+    summaries = checkpoint.finalize()
     print("\nMean MASE across evaluated datasets and seeds:")
     print(summaries["table2_mean_mase"].to_string(index=False))
     return per_seed

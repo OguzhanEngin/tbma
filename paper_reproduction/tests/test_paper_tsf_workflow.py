@@ -18,19 +18,22 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def _write_tsf(
     path: Path,
     *,
-    frequency: str = "quarterly",
+    frequency: str | None = "quarterly",
     horizon: int = 2,
     n_series: int = 5,
     n_periods: int = 40,
 ) -> Path:
-    lines = [
-        "@attribute series_name string",
-        f"@frequency {frequency}",
-        f"@horizon {horizon}",
-        "@missing false",
-        "@equallength true",
-        "@data",
-    ]
+    lines = ["@attribute series_name string"]
+    if frequency is not None:
+        lines.append(f"@frequency {frequency}")
+    lines.extend(
+        [
+            f"@horizon {horizon}",
+            "@missing false",
+            "@equallength true",
+            "@data",
+        ]
+    )
     seasonal = np.array([1.0, 4.0, 2.0, 5.0])
     for series_idx in range(n_series):
         values = (
@@ -97,6 +100,29 @@ def test_tsf_parser_and_paper_preparation(tmp_path):
         data,
     )
     assert np.equal(reconstructed, np.rint(reconstructed)).all()
+
+
+def test_missing_tsf_frequency_defaults_to_yearly(tmp_path):
+    path = _write_tsf(tmp_path / "missing_frequency.tsf", frequency=None)
+    metadata = paper.read_tsf(path)
+
+    assert metadata.frequency is None
+
+    data = paper.prepare_dataset(path, lookback=4)
+
+    assert data.frequency == "YS"
+    assert data.seasonal_period == 1
+    dates = data.full["date"].drop_duplicates().sort_values().reset_index(drop=True)
+    assert dates.iloc[0].month == 1
+    assert dates.iloc[0].day == 1
+    assert dates.iloc[1].year - dates.iloc[0].year == 1
+
+
+def test_explicit_unsupported_tsf_frequency_still_raises(tmp_path):
+    path = _write_tsf(tmp_path / "unsupported_frequency.tsf", frequency="fortnightly")
+
+    with pytest.raises(ValueError, match="Unsupported TSF frequency 'fortnightly'"):
+        paper.prepare_dataset(path, lookback=4)
 
 
 def test_complete_paper_seed_uses_requested_estimators(tmp_path):
@@ -248,4 +274,81 @@ def test_result_output_supports_unicode_and_space_paths(tmp_path):
     paper.write_results(pd.DataFrame(rows), output)
 
     assert (output / "per_seed_mase.csv").is_file()
+    assert (output / "table2_mean_mase.csv").is_file()
+
+
+def test_run_seed_emits_each_model_as_soon_as_it_finishes(tmp_path):
+    path = _write_tsf(tmp_path / "quarterly.tsf")
+    data = paper.prepare_dataset(path, lookback=4)
+    settings = paper.PaperModelSettings(
+        tbma_n_estimators=8,
+        rf_n_estimators=8,
+        catboost_iterations=8,
+        men_n_alphas=4,
+    )
+    emitted: list[str] = []
+
+    rows = paper.run_seed(
+        data,
+        1,
+        settings=settings,
+        n_jobs=1,
+        on_result=lambda row: emitted.append(row["model"]),
+    )
+
+    assert emitted == [
+        "TBMA",
+        "CB",
+        "MEN",
+        "RF",
+        "CB_TBMA",
+        "MEN_TBMA",
+        "RF_TBMA",
+    ]
+    assert [row["model"] for row in rows] == emitted
+
+
+def test_completed_models_remain_checkpointed_if_a_seed_is_interrupted(
+    tmp_path, monkeypatch
+):
+    datasets = tmp_path / "Datasets"
+    datasets.mkdir()
+    _write_tsf(datasets / "synthetic.tsf")
+    config = paper.DatasetConfig("Synthetic", "synthetic.tsf", 2, 4)
+    output = tmp_path / "paper results"
+
+    def interrupted_run_seed(data, seed, *, settings, n_jobs, on_result):
+        del settings, n_jobs
+        common = {
+            "dataset": data.name,
+            "file_name": data.path.name,
+            "evaluate": data.evaluate,
+            "seed": seed,
+            "median_MASE": 1.0,
+            "n_series": len(data.test),
+            "horizon": data.horizon,
+            "lookback": data.lookback,
+            "seasonal_period": data.seasonal_period,
+            "seasonal_differencing": data.seasonal_differencing,
+            "seasonal_dominance_ratio": data.seasonal_dominance_ratio,
+        }
+        on_result({**common, "model": "TBMA", "mean_MASE": 1.1})
+        on_result({**common, "model": "CB", "mean_MASE": 1.2})
+        raise RuntimeError("simulated interruption")
+
+    monkeypatch.setattr(paper, "run_seed", interrupted_run_seed)
+
+    with pytest.raises(RuntimeError, match="simulated interruption"):
+        paper.run_dataset_configs(
+            [config],
+            datasets_dir=datasets,
+            seeds=[1],
+            output_dir=output,
+            n_jobs=1,
+        )
+
+    checkpoint = pd.read_csv(output / "per_seed_mase.csv")
+    assert list(checkpoint["model"]) == ["TBMA", "CB"]
+    assert list(checkpoint["mean_MASE"]) == [1.1, 1.2]
+    assert (output / "dataset_mean_mase.csv").is_file()
     assert (output / "table2_mean_mase.csv").is_file()

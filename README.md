@@ -97,7 +97,7 @@ Or supply a sequence of candidate orders. Each tree deterministically draws one 
 model = TBMA(ma_order=range(1, 8), random_state=42)
 ```
 
-If domain knowledge suggests a useful range related to seasonality, construct it explicitly:
+If domain knowledge suggests a useful range related to seasonality, it can be constructed explicitly:
 
 ```python
 seasonal_period = 24
@@ -106,8 +106,6 @@ ma_orders = range(1, seasonal_period + 1)
 model = TBMA(ma_order=ma_orders)
 model.fit(X, y, seasonal_period=seasonal_period)
 ```
-
-The library never converts `seasonal_period` into an MA range automatically.
 
 ## Full TBMA feature representation
 
@@ -272,11 +270,11 @@ Pickle can execute code while loading. Only load files from trusted sources.
 
 The manuscript evaluation pipeline is intentionally **not part of the PyPI distribution**. The source repository contains a separate `paper_reproduction/` directory, a repository-root `dataset_info.xlsx`, and expects the `.tsf` files under `./Datasets/`. That workflow reproduces the paper preprocessing, TBMA feature augmentation, standalone TBMA readout, downstream Random Forest / Multi-task Elastic Net / CatBoost comparisons, 10-seed evaluation, and MASE/statistical summaries.
 
-The reproduction code and its dependencies are excluded from both the wheel and sdist. Installing `tbma` therefore installs only the reusable library. From a GitHub/source checkout, see `paper_reproduction/README.md` for the exact workbook columns, dependencies, commands, model settings, and outputs.
+The reproduction code and its dependencies are excluded from both the wheel and sdist. Installing `tbma` therefore installs only the reusable library. The repository workflow checkpoints each completed model result to CSV during long runs. From a GitHub/source checkout, see `paper_reproduction/README.md` for the exact workbook columns, dependencies, commands, model settings, checkpoint behavior, and outputs.
 
 ## Method background
 
-The package implements the method described in the current manuscript **“TBMA: Temporal Feature Learning for Multi-Series Forecasting.”** The method uses random-forest-defined autoregressive neighborhoods together with node-specific, one-sided pooled moving-average curves. The same learned representation can be returned as tree-level temporal features or averaged into a standalone forecast.
+The package implements **“TBMA: Temporal Feature Learning for Multi-Series Forecasting.”** The method uses random-forest-defined autoregressive neighborhoods together with node-specific, one-sided pooled moving-average curves. The same learned representation can be returned as tree-level temporal features or averaged into a standalone forecast.
 
 The library deliberately exposes the method separately from dataset preparation and evaluation code: callers provide prepared predictors, a one-step target, timestamps, explicit MA order(s), and an optional seasonal period.
 

@@ -119,3 +119,5 @@ paper_results/
 ```
 
 `per_seed_mase.csv` and `dataset_mean_mase.csv` retain every executed (`run = 1`) dataset. Cross-dataset paper tables and statistical comparisons use only rows whose workbook setting has `evaluate = 1`.
+
+Results are checkpointed **during** the experiment rather than only at the end. After each model finishes, `per_seed_mase.csv` is atomically replaced with all completed rows, and the currently available aggregate CSVs are refreshed. Within a seed, standalone `TBMA` is saved first, then the base `CB`, `MEN`, and `RF` results, followed by `CB_TBMA`, `MEN_TBMA`, and `RF_TBMA`. If a later model or dataset fails, rows that finished earlier remain on disk. Aggregate tables should be treated as provisional until the requested run is complete. Once the first model of a new invocation completes, using the same `--output-dir` starts a fresh checkpoint and replaces prior result files, so use a new output directory when previous results must be retained.
