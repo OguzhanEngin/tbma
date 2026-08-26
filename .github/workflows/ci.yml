@@ -111,7 +111,7 @@ jobs:
 
   build:
     name: Build release artifacts
-    needs: [lint, core, paper-reproduction]
+    needs: [lint, core]
     runs-on: ubuntu-latest
 
     steps:
