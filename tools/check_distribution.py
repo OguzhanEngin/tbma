@@ -12,6 +12,9 @@ FORBIDDEN_PARTS = {
     "dataset_info.xlsx",
     "Datasets",
     "paper_results",
+    "PUBLISHING.md",
+    "VALIDATION.md",
+    "CHANGELOG.md",
 }
 FORBIDDEN_REQUIREMENTS = {"catboost", "openpyxl"}
 NATIVE_SUFFIXES = {".so", ".pyd", ".dll", ".dylib"}

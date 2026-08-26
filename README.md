@@ -288,7 +288,6 @@ python -m build
 python -m twine check dist/*
 ```
 
-See `VALIDATION.md` for numerical-equivalence and package checks, and `PUBLISHING.md` for the release procedure.
 
 ## Authors and citation
 
