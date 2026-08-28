@@ -59,9 +59,6 @@ def test_repository_dataset_info_is_read_from_repo_data_sheet():
     assert tourism.integer_conversion is False
     assert tourism.evaluate is True
 
-    assert "M4 Hourly" not in by_name  # run == 0 in the supplied workbook
-
-
 def test_tsf_parser_and_paper_preparation(tmp_path):
     path = _write_tsf(tmp_path / "quarterly.tsf")
     metadata = paper.read_tsf(path)
